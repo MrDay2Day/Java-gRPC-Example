@@ -5,6 +5,7 @@ import io.grpc.*;
 import grpc.file.proto.*;
 import io.grpc.stub.MetadataUtils;
 
+import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 
 public class GRPCClient {
@@ -14,6 +15,8 @@ public class GRPCClient {
     // Define metadata keys
     private static final Metadata.Key<String> AUTH_TOKEN_KEY = Metadata.Key.of("auth-token", Metadata.ASCII_STRING_MARSHALLER);
     private static final Metadata.Key<String> USER_ID_KEY = Metadata.Key.of("user-id", Metadata.ASCII_STRING_MARSHALLER);
+
+
 
 
     // Constructor without metadata
@@ -32,8 +35,14 @@ public class GRPCClient {
     }
 
     public void greet(String name) {
+        Metadata metadata = new Metadata();
+        metadata.put(AUTH_TOKEN_KEY, "your_auth_token_on_service");
+        metadata.put(USER_ID_KEY, "user123Service");
+
         HelloRequest request = HelloRequest.newBuilder().setName(name).build();
-        HelloReply response = blockingStub.sayHello(request);
+        HelloReply response = blockingStub
+                .withCallCredentials(new MetadataCredentials(metadata))
+                .sayHello(request);
         System.out.println("Greeting: " + response.getMessage());
     }
 
@@ -54,16 +63,59 @@ public class GRPCClient {
                 .build();
 
         try {
-            // Create metadata
-            Metadata metadata = new Metadata();
-            metadata.put(AUTH_TOKEN_KEY, "your_auth_token");
-            metadata.put(USER_ID_KEY, "user123");
 
-            GRPCClient client = new GRPCClient(channel, metadata);
-            client.greet("World");
-            client.calculateAdd(3,5);
+            try{
+                GRPCClient client_1 = new GRPCClient(channel);
+                client_1.greet("World"); // With metadata
+                client_1.calculateAdd(3,5); // Without metadata
+            }catch (Exception e){
+                System.out.println("Individual Metadata Error: " + e.getMessage());
+            }
+
+
+            try{
+                // Create metadata
+                Metadata metadata = new Metadata();
+                metadata.put(AUTH_TOKEN_KEY, "your_auth_token");
+                metadata.put(USER_ID_KEY, "user123");
+
+                GRPCClient client_2 = new GRPCClient(channel, metadata); // Global metadata
+                client_2.greet("World");
+                client_2.calculateAdd(3,5);
+            }catch(Exception e){
+                System.out.println("Global Metadata Error: " + e.getMessage());
+            }
+
+
         } finally {
             channel.shutdownNow().awaitTermination(5, TimeUnit.SECONDS);
         }
     }
 }
+
+
+// Custom CallCredentials implementation
+class MetadataCredentials extends CallCredentials {
+    private final Metadata metadata;
+
+    public MetadataCredentials(Metadata metadata) {
+        this.metadata = metadata;
+    }
+
+    @Override
+    public void applyRequestMetadata(RequestInfo requestInfo, Executor appExecutor, MetadataApplier applier) {
+        appExecutor.execute(() -> {
+            try {
+                applier.apply(metadata);
+            } catch (Throwable e) {
+                applier.fail(Status.UNAUTHENTICATED.withCause(e));
+            }
+        });
+    }
+
+    @Override
+    public void thisUsesUnstableApi() {
+        // This method is required by the CallCredentials interface but doesn't need implementation
+    }
+}
+
