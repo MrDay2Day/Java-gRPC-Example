@@ -61,3 +61,40 @@ message ByeReply {
   string message = 1;
 }
 ```
+
+
+### `calculator.proto`
+```protobuf
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "grpc.file.proto";
+option java_outer_classname = "CalculatorProto";
+
+package calculator;
+
+service Calculator {
+  rpc Add (AddRequest) returns (AddResponse);
+  rpc Multiply (MultiplyRequest) returns (MultiplyResponse);
+}
+
+message AddRequest {
+  int32 a = 1;
+  int32 b = 2;
+}
+
+message AddResponse {
+  int32 result = 1;
+}
+
+message MultiplyRequest {
+  int32 a = 1;
+  int32 b = 2;
+  int32 c = 3;
+
+}
+
+message MultiplyResponse {
+  int32 result = 1;
+}
+```
