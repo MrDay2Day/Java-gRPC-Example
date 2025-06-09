@@ -129,13 +129,16 @@ class ServerRequestInterceptor implements io.grpc.ServerInterceptor {
             @Override
             public void sendMessage(RespT message) {
                 System.out.println("sendMessage called: " + message);
+                // Handle Data Manipulation or Logging before sending the message
                 super.sendMessage(message);
             }
+
             // Set headers before sending
             @Override
             public void sendHeaders(Metadata headers) {
                 headers.put(SERVER_TOKEN_KEY, "server_auth_token");
                 headers.put(SERVER_ID, "server_id");
+                // Handle Data Manipulation or Logging before sending headers
                 super.sendHeaders(headers);
             }
         };
